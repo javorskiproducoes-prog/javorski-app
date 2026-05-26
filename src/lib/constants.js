@@ -5,7 +5,19 @@ export const EQUIPE = [
   { nome: 'Gabriel',  tipo: 'foto',  cor: '#185FA5', iniciais: 'GA' },
   { nome: 'Matheus',  tipo: 'foto',  cor: '#0F6E56', iniciais: 'MA' },
   { nome: 'Valéria',  tipo: 'foto',  cor: '#D4537E', iniciais: 'VA' },
-  { nome: 'Ana',      tipo: 'adm',   cor: '#2C2C2A', iniciais: 'AN' },
+  { nome: 'Ana Luiza', tipo: 'adm', cor: '#2C2C2A', iniciais: 'AN' },
+]
+
+export const TIPOS_SERVICO = [
+  'Casamento',
+  'Pré Wedding',
+  'Ensaio',
+  'Gestante',
+  'Aniversário',
+  'Datas Especiais',
+  'Empresarial',
+  'Evento',
+  'Outro',
 ]
 
 export const CATEGORIAS = {
@@ -85,8 +97,17 @@ export const TEMPOS = [
 ]
 
 export const TEMPO_EM_MIN = {
-  '5min': 5, '10min': 10, '15min': 15, '20min': 20, '30min': 30,
-  '45min': 45, '1h': 60, '1h15': 75, '1h30': 90, '1h45': 105, '2h': 120,
+  '5min': 5,
+  '10min': 10,
+  '15min': 15,
+  '20min': 20,
+  '30min': 30,
+  '45min': 45,
+  '1h': 60,
+  '1h15': 75,
+  '1h30': 90,
+  '1h45': 105,
+  '2h': 120,
 }
 
 export const STATUS_OPTIONS = ['—', 'OK', '1/3', '2/3', '3/3', '4/3', 'Em andamento']

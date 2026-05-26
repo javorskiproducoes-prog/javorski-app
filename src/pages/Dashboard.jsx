@@ -1,6 +1,35 @@
 import { useMemo } from 'react'
 import { EQUIPE, TEMPO_EM_MIN } from '../lib/constants'
-import { Avatar } from '../components/Avatar'
+
+function minutosDoEvento(ev) {
+  if (Number(ev.tempo_manual_minutos) > 0) {
+    return Number(ev.tempo_manual_minutos)
+  }
+
+  if (Number(ev.horas_calculadas) > 0) {
+    return Number(ev.horas_calculadas) * 60
+  }
+
+  if (TEMPO_EM_MIN[ev.tempo]) {
+    return TEMPO_EM_MIN[ev.tempo]
+  }
+
+  if (typeof ev.tempo === 'string') {
+    const texto = ev.tempo.toLowerCase().trim()
+
+    if (texto.includes('min')) {
+      const n = Number(texto.replace(/[^0-9]/g, ''))
+      if (n > 0) return n
+    }
+
+    if (texto.includes('h')) {
+      const n = Number(texto.replace(/[^0-9]/g, ''))
+      if (n > 0) return n * 60
+    }
+  }
+
+  return 0
+}
 
 function getMetricas(registros) {
   let totalRegistros = registros.length
@@ -10,156 +39,222 @@ function getMetricas(registros) {
   let diasAtivos = new Set()
 
   const porPessoa = {}
+  const porCategoria = {}
+  const porProjeto = {}
+
   EQUIPE.forEach(p => {
-    porPessoa[p.nome] = { edicoes: 0, selecoes: 0, minutos: 0, minutosVideo: 0, minutesFoto: 0, dias: new Set(), pessoa: p }
+    porPessoa[p.nome] = {
+      edicoes: 0,
+      selecoes: 0,
+      minutos: 0,
+      minutosVideo: 0,
+      minutosFoto: 0,
+      minutosAdm: 0,
+      dias: new Set(),
+      pessoa: p,
+    }
   })
 
   registros.forEach(r => {
     diasAtivos.add(r.data)
+
     const pp = porPessoa[r.pessoa]
-    if (pp) pp.dias.add(r.data)
+
+    if (pp) {
+      pp.dias.add(r.data)
+    }
 
     r.blocos.forEach(bloco => {
       bloco.forEach(ev => {
-        const mins = TEMPO_EM_MIN[ev.tempo] || 0
+        const mins = minutosDoEvento(ev)
+
         totalMinutos += mins
+
+        const categoria = ev.categoria || 'Sem categoria'
+        const projeto = ev.projeto || 'Sem projeto'
+
+        porCategoria[categoria] = (porCategoria[categoria] || 0) + mins
+        porProjeto[projeto] = (porProjeto[projeto] || 0) + mins
+
         if (pp) {
           pp.minutos += mins
-          const isVideo = ['Decupagem','Montagem','Partes','Cor','Reels','Revisão — Vídeo','Gravação — Ensaio','Gravação — Evento','Gravação — Empresarial'].includes(ev.categoria)
-          if (isVideo) pp.minutosVideo += mins
-          else pp.minutesFoto += mins
+
+          if (r.tipo === 'video') {
+            pp.minutosVideo += mins
+          } else if (r.tipo === 'foto') {
+            pp.minutosFoto += mins
+          } else {
+            pp.minutosAdm += mins
+          }
         }
-        const e = Number(ev.edicoes) || 0
-        const s = Number(ev.selecoes) || 0
-        totalEdicoes += e
-        totalSelecoes += s
-        if (pp) { pp.edicoes += e; pp.selecoes += s }
+
+        const ed = Number(ev.edicoes) || 0
+        const se = Number(ev.selecoes) || 0
+
+        totalEdicoes += ed
+        totalSelecoes += se
+
+        if (pp) {
+          pp.edicoes += ed
+          pp.selecoes += se
+        }
       })
     })
   })
 
-  return { totalRegistros, totalEdicoes, totalSelecoes, totalMinutos, diasAtivos: diasAtivos.size, porPessoa }
+  return {
+    totalRegistros,
+    totalEdicoes,
+    totalSelecoes,
+    totalMinutos,
+    diasAtivos: diasAtivos.size,
+    porPessoa,
+    porCategoria,
+    porProjeto,
+  }
 }
 
-function Barra({ label, valor, max, cor, sufixo = '' }) {
+function Barra({ label, valor, max, cor = '#1C1B18', sufixo = '' }) {
   const pct = max > 0 ? Math.round((valor / max) * 100) : 0
+
   return (
     <div className="barra-wrap">
       <span className="barra-label">{label}</span>
       <div className="barra-track">
-        <div className="barra-fill" style={{ width: `${pct}%`, background: cor }} />
+        <div
+          className="barra-fill"
+          style={{
+            width: `${pct}%`,
+            background: cor,
+          }}
+        />
       </div>
-      <span className="barra-valor">{valor.toLocaleString('pt-BR')}{sufixo}</span>
+      <span className="barra-valor">
+        {valor}
+        {sufixo}
+      </span>
     </div>
   )
 }
 
+function horas(minutos) {
+  return Math.round((minutos / 60) * 10) / 10
+}
+
 export function Dashboard({ registros }) {
-  const { totalRegistros, totalEdicoes, totalSelecoes, totalMinutos, diasAtivos, porPessoa } = useMemo(() => getMetricas(registros), [registros])
+  const metricas = useMemo(() => getMetricas(registros), [registros])
 
-  const fotoPessoas = EQUIPE.filter(p => p.tipo === 'foto')
-  const videoPessoas = EQUIPE.filter(p => p.tipo === 'video')
-  const maxEdicoes = Math.max(...fotoPessoas.map(p => porPessoa[p.nome]?.edicoes || 0), 1)
-  const maxMinutos = Math.max(...EQUIPE.map(p => porPessoa[p.nome]?.minutos || 0), 1)
+  const {
+    totalRegistros,
+    totalEdicoes,
+    totalSelecoes,
+    totalMinutos,
+    diasAtivos,
+    porPessoa,
+    porCategoria,
+    porProjeto,
+  } = metricas
 
-  // Tempo por categoria
-  const catMinutos = {}
-  registros.forEach(r => r.blocos.forEach(b => b.forEach(ev => {
-    if (ev.categoria) catMinutos[ev.categoria] = (catMinutos[ev.categoria] || 0) + (TEMPO_EM_MIN[ev.tempo] || 0)
-  })))
-  const topCats = Object.entries(catMinutos).sort((a,b) => b[1]-a[1]).slice(0, 10)
-  const maxCatMin = topCats[0]?.[1] || 1
+  const maxHorasPessoa = Math.max(
+    ...EQUIPE.map(p => horas(porPessoa[p.nome]?.minutos || 0)),
+    1
+  )
+
+  const topCategorias = Object.entries(porCategoria)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
+  const topProjetos = Object.entries(porProjeto)
+    .filter(([nome]) => nome !== 'Sem projeto')
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
+  const maxCat = Math.max(...topCategorias.map(([, mins]) => horas(mins)), 1)
+  const maxProj = Math.max(...topProjetos.map(([, mins]) => horas(mins)), 1)
 
   return (
     <div>
       <h2 className="section-title">Dashboard</h2>
 
-      {/* KPIs */}
       <div className="metric-grid mb-6">
         <div className="metric-card">
           <div className="metric-value">{totalRegistros}</div>
           <div className="metric-label">Registros</div>
         </div>
+
         <div className="metric-card">
           <div className="metric-value">{diasAtivos}</div>
           <div className="metric-label">Dias ativos</div>
         </div>
+
         <div className="metric-card">
           <div className="metric-value">{totalEdicoes.toLocaleString('pt-BR')}</div>
-          <div className="metric-label">Total edições</div>
+          <div className="metric-label">Edições</div>
         </div>
+
         <div className="metric-card">
           <div className="metric-value">{totalSelecoes.toLocaleString('pt-BR')}</div>
-          <div className="metric-label">Total seleções</div>
+          <div className="metric-label">Seleções</div>
         </div>
+
         <div className="metric-card">
-          <div className="metric-value">{Math.round(totalMinutos / 60)}</div>
-          <div className="metric-label">Horas registradas</div>
+          <div className="metric-value">{horas(totalMinutos)}</div>
+          <div className="metric-label">Horas</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }} className="mb-6">
-        {/* Edições por fotógrafo */}
-        <div className="card">
-          <div className="card-header">
-            <span style={{ fontWeight: 600, fontSize: 13 }}>📷 Edições por fotógrafo</span>
-          </div>
-          <div className="card-body">
-            {fotoPessoas.map(p => (
-              <Barra key={p.nome} label={p.nome} valor={porPessoa[p.nome]?.edicoes || 0} max={maxEdicoes} cor={p.cor} />
-            ))}
-          </div>
+      <div className="card mb-6">
+        <div className="card-header">
+          <strong>⏱ Horas por pessoa</strong>
         </div>
 
-        {/* Horas por pessoa */}
-        <div className="card">
-          <div className="card-header">
-            <span style={{ fontWeight: 600, fontSize: 13 }}>⏱ Horas registradas por pessoa</span>
-          </div>
-          <div className="card-body">
-            {EQUIPE.map(p => {
-              const mins = porPessoa[p.nome]?.minutos || 0
-              return <Barra key={p.nome} label={p.nome} valor={Math.round(mins / 60)} max={Math.round(maxMinutos / 60)} cor={p.cor} sufixo="h" />
-            })}
-          </div>
+        <div className="card-body">
+          {EQUIPE.map(p => (
+            <Barra
+              key={p.nome}
+              label={p.nome}
+              valor={horas(porPessoa[p.nome]?.minutos || 0)}
+              max={maxHorasPessoa}
+              cor={p.cor}
+              sufixo="h"
+            />
+          ))}
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* Top categorias */}
-        <div className="card">
-          <div className="card-header">
-            <span style={{ fontWeight: 600, fontSize: 13 }}>🏷 Tempo por categoria (top 10)</span>
-          </div>
-          <div className="card-body">
-            {topCats.map(([cat, mins]) => (
-              <Barra key={cat} label={cat.length > 22 ? cat.slice(0,20)+'…' : cat} valor={Math.round(mins/60)} max={Math.round(maxCatMin/60)} cor="#1C1B18" sufixo="h" />
-            ))}
-            {topCats.length === 0 && <p className="text-muted" style={{ fontSize: 13 }}>Sem dados ainda.</p>}
-          </div>
+      <div className="card mb-6">
+        <div className="card-header">
+          <strong>🏷 Tempo por categoria</strong>
         </div>
 
-        {/* Produção vs Pós-produção vídeo */}
-        <div className="card">
-          <div className="card-header">
-            <span style={{ fontWeight: 600, fontSize: 13 }}>🎬 Produção vs Pós-produção (vídeo)</span>
-          </div>
-          <div className="card-body">
-            {videoPessoas.map(p => {
-              const pp = porPessoa[p.nome]
-              const total = (pp?.minutosVideo || 0)
-              const hProd = Math.round((pp?.minutosVideo || 0) / 60)
-              return (
-                <div key={p.nome} className="mb-3">
-                  <div className="flex justify-between mb-2">
-                    <span style={{ fontWeight: 600, fontSize: 12 }}>{p.nome}</span>
-                    <span className="text-xs text-muted">{hProd}h total</span>
-                  </div>
-                  <Barra label="" valor={hProd} max={Math.max(...videoPessoas.map(vp => Math.round((porPessoa[vp.nome]?.minutosVideo||0)/60)), 1)} cor={p.cor} sufixo="h" />
-                </div>
-              )
-            })}
-          </div>
+        <div className="card-body">
+          {topCategorias.map(([cat, mins]) => (
+            <Barra
+              key={cat}
+              label={cat}
+              valor={horas(mins)}
+              max={maxCat}
+              sufixo="h"
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="card mb-6">
+        <div className="card-header">
+          <strong>📁 Top projetos por tempo dedicado</strong>
+        </div>
+
+        <div className="card-body">
+          {topProjetos.map(([proj, mins]) => (
+            <Barra
+              key={proj}
+              label={proj.length > 28 ? proj.slice(0, 28) + '…' : proj}
+              valor={horas(mins)}
+              max={maxProj}
+              sufixo="h"
+            />
+          ))}
         </div>
       </div>
     </div>

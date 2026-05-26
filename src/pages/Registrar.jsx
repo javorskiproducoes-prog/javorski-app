@@ -180,7 +180,7 @@ export function Registrar({ salvarRegistro, perfil }) {
         {form.blocos.map((bloco, bi) => (
           <div key={bi} className="bloco">
             <div className="bloco-header" style={{ borderLeft: `3px solid ${pessoaSel.cor}` }}>
-              <span>Bloco {bi + 1} — {['8h–10h', '10h–12h', '13h–15h', '15h–17h'][bi]}</span>
+              <span>Bloco {bi + 1} — {['9h–11h', '11h–14h', '14h–16h', '16h–18h'][bi]}</span>
               <span style={{ color: pessoaSel.cor }}>
                 {bloco.filter(i => i.cat || i.ev || i.minutos).length} item(s)
               </span>

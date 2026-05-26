@@ -1,6 +1,30 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
+async function buscarTudo(tabela, order = 'id') {
+  const pageSize = 1000
+  let from = 0
+  let todos = []
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(tabela)
+      .select('*')
+      .order(order, { ascending: true })
+      .range(from, from + pageSize - 1)
+
+    if (error) throw error
+
+    todos = todos.concat(data || [])
+
+    if (!data || data.length < pageSize) break
+
+    from += pageSize
+  }
+
+  return todos
+}
+
 export function useRegistros() {
   const [registros, setRegistros] = useState([])
   const [loading, setLoading] = useState(true)
@@ -10,122 +34,45 @@ export function useRegistros() {
     setLoading(true)
 
     try {
-      const { data: regs, error: e1 } = await supabase
-        .from('registros')
-        .select('*')
-        .order('data', { ascending: false })
-
-      if (e1) throw e1
-
-      const { data: blocos, error: e2 } = await supabase
-        .from('blocos')
-        .select('*')
-
-      if (e2) throw e2
-
-      const { data: eventos, error: e3 } = await supabase
-        .from('eventos')
-        .select('*')
-        .order('ordem', { ascending: true })
-
-      if (e3) throw e3
+      const regs = await buscarTudo('registros', 'data')
+      const blocos = await buscarTudo('blocos', 'numero')
+      const eventos = await buscarTudo('eventos', 'ordem')
 
       const blocoMap = {}
 
-      ;(blocos || []).forEach(bloco => {
+      blocos.forEach(bloco => {
         blocoMap[bloco.id] = {
           ...bloco,
           itens: [],
         }
       })
 
-      ;(eventos || []).forEach(evento => {
+      eventos.forEach(evento => {
         if (blocoMap[evento.bloco_id]) {
           blocoMap[evento.bloco_id].itens.push({
             ...evento,
-
             servico: evento.servico || '',
-
-            categoria:
-              evento.categoria ||
-              evento.cat ||
-              '',
-
-            projeto:
-              evento.projeto ||
-              evento.ev ||
-              '',
-
-            tempo:
-              evento.tempo ||
-              evento.tm ||
-              '',
-
-            status:
-              evento.status ||
-              evento.st ||
-              '',
-
-            observacao:
-              evento.observacao ||
-              evento.ob ||
-              '',
-
-            edicoes:
-              Number(
-                evento.edicoes ??
-                evento.ed
-              ) || 0,
-
-            selecoes:
-              Number(
-                evento.selecoes ??
-                evento.se
-              ) || 0,
-
-            cat:
-              evento.categoria ||
-              evento.cat ||
-              '',
-
-            ev:
-              evento.projeto ||
-              evento.ev ||
-              '',
-
-            tm:
-              evento.tempo ||
-              evento.tm ||
-              '',
-
-            st:
-              evento.status ||
-              evento.st ||
-              '',
-
-            ob:
-              evento.observacao ||
-              evento.ob ||
-              '',
-
-            ed:
-              Number(
-                evento.edicoes ??
-                evento.ed
-              ) || 0,
-
-            se:
-              Number(
-                evento.selecoes ??
-                evento.se
-              ) || 0,
+            categoria: evento.categoria || '',
+            projeto: evento.projeto || '',
+            tempo: evento.tempo || '',
+            status: evento.status || '',
+            observacao: evento.observacao || '',
+            edicoes: Number(evento.edicoes) || 0,
+            selecoes: Number(evento.selecoes) || 0,
+            cat: evento.categoria || '',
+            ev: evento.projeto || '',
+            tm: evento.tempo || '',
+            st: evento.status || '',
+            ob: evento.observacao || '',
+            ed: Number(evento.edicoes) || 0,
+            se: Number(evento.selecoes) || 0,
           })
         }
       })
 
       const registroMap = {}
 
-      ;(regs || []).forEach(registro => {
+      regs.forEach(registro => {
         registroMap[registro.id] = {
           ...registro,
           blocos: [[], [], [], []],
@@ -138,7 +85,11 @@ export function useRegistros() {
         }
       })
 
-      setRegistros(Object.values(registroMap))
+      const lista = Object.values(registroMap).sort((a, b) =>
+        String(b.data).localeCompare(String(a.data))
+      )
+
+      setRegistros(lista)
       setError(null)
     } catch (err) {
       setError(err.message)
@@ -209,26 +160,20 @@ export function useRegistros() {
         const minutosBloco = 120
         const minutosAutomaticos = minutosBloco / itensValidos.length
 
-        const eventosSalvar = itensValidos.map((item, idx) => {
-          return {
-            bloco_id: bloco.id,
-
-            servico: item.servico || '',
-
-            categoria: item.cat || '',
-            projeto: item.ev || '',
-            tempo: item.tm || '',
-            status: item.st || '',
-            observacao: item.ob || '',
-
-            edicoes: Number(item.ed) || 0,
-            selecoes: Number(item.se) || 0,
-
-            ordem: idx,
-            origem_tempo: 'automatico',
-            horas_calculadas: minutosAutomaticos / 60,
-          }
-        })
+        const eventosSalvar = itensValidos.map((item, idx) => ({
+          bloco_id: bloco.id,
+          servico: item.servico || '',
+          categoria: item.cat || '',
+          projeto: item.ev || '',
+          tempo: item.tm || '',
+          status: item.st || '',
+          observacao: item.ob || '',
+          edicoes: Number(item.ed) || 0,
+          selecoes: Number(item.se) || 0,
+          ordem: idx,
+          origem_tempo: 'automatico',
+          horas_calculadas: minutosAutomaticos / 60,
+        }))
 
         const { error: e3 } = await supabase
           .from('eventos')

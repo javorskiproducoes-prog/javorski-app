@@ -46,22 +46,79 @@ export function useRegistros() {
 
             servico: evento.servico || '',
 
-            categoria: evento.categoria || '',
-            projeto: evento.projeto || '',
-            tempo: evento.tempo || '',
-            status: evento.status || '',
-            observacao: evento.observacao || '',
+            categoria:
+              evento.categoria ||
+              evento.cat ||
+              '',
 
-            edicoes: Number(evento.edicoes) || 0,
-            selecoes: Number(evento.selecoes) || 0,
+            projeto:
+              evento.projeto ||
+              evento.ev ||
+              '',
 
-            cat: evento.categoria || '',
-            ev: evento.projeto || '',
-            tm: evento.tempo || '',
-            st: evento.status || '',
-            ob: evento.observacao || '',
-            ed: Number(evento.edicoes) || 0,
-            se: Number(evento.selecoes) || 0,
+            tempo:
+              evento.tempo ||
+              evento.tm ||
+              '',
+
+            status:
+              evento.status ||
+              evento.st ||
+              '',
+
+            observacao:
+              evento.observacao ||
+              evento.ob ||
+              '',
+
+            edicoes:
+              Number(
+                evento.edicoes ??
+                evento.ed
+              ) || 0,
+
+            selecoes:
+              Number(
+                evento.selecoes ??
+                evento.se
+              ) || 0,
+
+            cat:
+              evento.categoria ||
+              evento.cat ||
+              '',
+
+            ev:
+              evento.projeto ||
+              evento.ev ||
+              '',
+
+            tm:
+              evento.tempo ||
+              evento.tm ||
+              '',
+
+            st:
+              evento.status ||
+              evento.st ||
+              '',
+
+            ob:
+              evento.observacao ||
+              evento.ob ||
+              '',
+
+            ed:
+              Number(
+                evento.edicoes ??
+                evento.ed
+              ) || 0,
+
+            se:
+              Number(
+                evento.selecoes ??
+                evento.se
+              ) || 0,
           })
         }
       })
@@ -136,16 +193,15 @@ export function useRegistros() {
 
         const itens = payload.blocos[i] || []
 
-        const itensValidos = itens.filter(
-          item =>
-            item.servico ||
-            item.cat ||
-            item.ev ||
-            item.tm ||
-            item.st ||
-            item.ob ||
-            item.ed ||
-            item.se
+        const itensValidos = itens.filter(item =>
+          item.servico ||
+          item.cat ||
+          item.ev ||
+          item.tm ||
+          item.st ||
+          item.ob ||
+          item.ed ||
+          item.se
         )
 
         if (itensValidos.length === 0) continue

@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { useRegistros } from './hooks/useRegistros'
+
 import { ToastContainer } from './components/Toast'
+
 import { Registrar } from './pages/Registrar'
 import { Dashboard } from './pages/Dashboard'
 import { Analise } from './pages/Analise'
 import { Historico } from './pages/Historico'
 import { Exportar } from './pages/Exportar'
 import { PassoAPasso } from './pages/PassoAPasso'
+import { Clientes } from './pages/Clientes'
 
 const ABAS_ADMIN = [
   { id: 'registrar', label: 'Registrar' },
+  { id: 'clientes', label: 'Clientes' },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'analise', label: 'Análise' },
   { id: 'historico', label: 'Histórico' },
@@ -32,6 +36,7 @@ function Login() {
 
   async function entrar(e) {
     e.preventDefault()
+
     setLoading(true)
     setErro('')
 
@@ -40,7 +45,10 @@ function Login() {
       password: senha,
     })
 
-    if (error) setErro(error.message)
+    if (error) {
+      setErro(error.message)
+    }
+
     setLoading(false)
   }
 
@@ -97,6 +105,7 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [perfil, setPerfil] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [perfilLoading, setPerfilLoading] = useState(false)
 
   const {
     registros,
@@ -116,8 +125,8 @@ export default function App() {
 
     iniciar()
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, sessionAtual) => {
-      setSession(sessionAtual)
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, novaSessao) => {
+      setSession(novaSessao)
     })
 
     return () => {
@@ -129,8 +138,11 @@ export default function App() {
     async function carregarPerfil() {
       if (!session?.user?.id) {
         setPerfil(null)
+        setPerfilLoading(false)
         return
       }
+
+      setPerfilLoading(true)
 
       const { data, error } = await supabase
         .from('perfis')
@@ -138,7 +150,13 @@ export default function App() {
         .eq('id', session.user.id)
         .single()
 
-      if (!error) setPerfil(data)
+      if (error) {
+        setPerfil(null)
+      } else {
+        setPerfil(data)
+      }
+
+      setPerfilLoading(false)
     }
 
     carregarPerfil()
@@ -148,10 +166,24 @@ export default function App() {
     await supabase.auth.signOut()
     setPerfil(null)
     setSession(null)
+    setAba('registrar')
   }
 
-  if (authLoading) {
-    return <div className="page">Carregando…</div>
+  if (authLoading || perfilLoading) {
+    return (
+      <div className="app">
+        <header className="header">
+          <div className="header-brand">
+            <span className="logo">Javorski</span>
+            <span className="sub">Produtividade</span>
+          </div>
+        </header>
+
+        <main className="page">
+          Carregando…
+        </main>
+      </div>
+    )
   }
 
   if (!session) {
@@ -160,10 +192,24 @@ export default function App() {
 
   if (!perfil) {
     return (
-      <div className="page">
-        <h2>Perfil não encontrado</h2>
-        <p>Esse usuário ainda não está cadastrado na tabela perfis.</p>
-        <button className="btn btn-primary" onClick={sair}>Sair</button>
+      <div className="app">
+        <header className="header">
+          <div className="header-brand">
+            <span className="logo">Javorski</span>
+            <span className="sub">Produtividade</span>
+          </div>
+
+          <button className="btn btn-ghost btn-sm" onClick={sair}>
+            Sair
+          </button>
+        </header>
+
+        <main className="page">
+          <h2>Perfil não encontrado</h2>
+          <p>Esse usuário ainda não está cadastrado na tabela perfis.</p>
+        </main>
+
+        <ToastContainer />
       </div>
     )
   }
@@ -209,12 +255,22 @@ export default function App() {
 
       <main className="page">
         {error && (
-          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#DC2626' }}>
+          <div
+            style={{
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              borderRadius: 8,
+              padding: '12px 16px',
+              marginBottom: 20,
+              fontSize: 13,
+              color: '#DC2626',
+            }}
+          >
             ⚠️ Erro de conexão com Supabase: {error}
           </div>
         )}
 
-        {loading && aba !== 'registrar' && aba !== 'deploy' ? (
+        {loading && aba !== 'registrar' && aba !== 'deploy' && aba !== 'clientes' ? (
           <div className="loading">
             <div className="spinner" />
             <span>Carregando dados…</span>
@@ -228,18 +284,35 @@ export default function App() {
               />
             )}
 
-            {aba === 'dashboard' && <Dashboard registros={registrosVisiveis} />}
-            {aba === 'analise' && isAdmin && <Analise registros={registrosVisiveis} />}
+            {aba === 'clientes' && isAdmin && (
+              <Clientes />
+            )}
+
+            {aba === 'dashboard' && (
+              <Dashboard registros={registrosVisiveis} />
+            )}
+
+            {aba === 'analise' && isAdmin && (
+              <Analise registros={registrosVisiveis} />
+            )}
+
             {aba === 'historico' && (
               <Historico
                 registros={registrosVisiveis}
                 deletarRegistro={isAdmin ? deletarRegistro : null}
               />
             )}
+
             {aba === 'exportar' && isAdmin && (
-              <Exportar registros={registrosVisiveis} exportarCSV={exportarCSV} />
+              <Exportar
+                registros={registrosVisiveis}
+                exportarCSV={exportarCSV}
+              />
             )}
-            {aba === 'deploy' && isAdmin && <PassoAPasso />}
+
+            {aba === 'deploy' && isAdmin && (
+              <PassoAPasso />
+            )}
           </>
         )}
       </main>

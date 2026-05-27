@@ -21,20 +21,26 @@ export const TIPOS_SERVICO = [
 ]
 
 export const CATEGORIAS = {
-  '🎬 Produção — Vídeo': [
-    'Gravação — Ensaio',
-    'Gravação — Evento',
-    'Gravação — Empresarial',
-  ],
-  '📷 Produção — Foto': [
-    'Fotografia — Ensaio',
-    'Fotografia — Evento',
-    'Fotografia — Empresarial',
-    'Pré-wedding',
-    'Saída externa',
-    'Estúdio',
-    'Ensaio gestante',
-  ],
+'🎬 Produção — Vídeo': [
+  'Gravação — Ensaio',
+  'Gravação — Evento',
+  'Gravação — Empresarial',
+],
+
+'🚫 Ausências': [
+  'Ausência',
+  'Compromisso externo',
+],
+
+'📷 Produção — Foto': [
+  'Fotografia — Ensaio',
+  'Fotografia — Evento',
+  'Fotografia — Empresarial',
+  'Pré-wedding',
+  'Saída externa',
+  'Estúdio',
+  'Ensaio gestante',
+],
   '🎞 Pós-produção — Vídeo': [
     'Decupagem',
     'Montagem',

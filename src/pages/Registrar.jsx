@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { EQUIPE, CATEGORIAS, TEMPOS, STATUS_OPTIONS, TURNOS, TIPOS_SERVICO, categoriaShowsE, categoriaShowsS } from '../lib/constants'
 import { Avatar } from '../components/Avatar'
 import { showToast } from '../components/Toast'
@@ -19,8 +20,27 @@ function formVazio(date) {
   }
 }
 
+function textoCliente(c) {
+  return `#${String(c.codigo || 0).padStart(3, '0')} — ${c.nome}`
+}
+
 export function Registrar({ salvarRegistro, perfil }) {
   const hoje = new Date().toISOString().slice(0, 10)
+
+  const [clientes, setClientes] = useState([])
+
+  useEffect(() => {
+    async function carregarClientes() {
+      const { data } = await supabase
+        .from('clientes')
+        .select('*')
+        .order('codigo', { ascending: true })
+
+      setClientes(data || [])
+    }
+
+    carregarClientes()
+  }, [])
 
   const pessoaDoPerfil = EQUIPE.find(
     p => p.nome?.toLowerCase() === perfil?.nome?.toLowerCase()
@@ -224,13 +244,19 @@ export function Registrar({ salvarRegistro, perfil }) {
                   </div>
 
                   <div>
-                    <label className="form-label">Projeto / Evento</label>
-                    <input
-                      className="form-input"
+                    <label className="form-label">Cliente</label>
+                    <select
+                      className="form-select"
                       value={item.ev}
                       onChange={e => setItemField(bi, ii, 'ev', e.target.value)}
-                      placeholder="Ex: Bianca e Leonardo"
-                    />
+                    >
+                      <option value="">— Selecionar cliente —</option>
+                      {clientes.map(c => (
+                        <option key={c.id} value={c.nome}>
+                          {textoCliente(c)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

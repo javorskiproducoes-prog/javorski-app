@@ -1,15 +1,31 @@
 import { useMemo, useState } from 'react'
-import { EQUIPE, CATEGORIAS, TIPOS_SERVICO, TEMPO_EM_MIN, corLeve } from '../lib/constants'
+import { EQUIPE, CATEGORIAS, TIPOS_SERVICO, TEMPO_EM_MIN } from '../lib/constants'
+
+import { DashboardFiltros } from '../components/dashboard/DashboardFiltros'
+import { DashboardKPIs } from '../components/dashboard/DashboardKPIs'
+import { DashboardComparativo } from '../components/dashboard/DashboardComparativo'
+import { DashboardCliente360 } from '../components/dashboard/DashboardCliente360'
+import { DashboardAusencias } from '../components/dashboard/DashboardAusencias'
+import { DashboardRankings } from '../components/dashboard/DashboardRankings'
 
 const CATEGORIAS_OFICIAIS = Object.values(CATEGORIAS).flat()
-const FOTO_ETAPAS = ['Edição de foto', 'Seleção de foto', 'Photoshop / Retoque', 'Exportação — Foto']
-const VIDEO_ETAPAS = ['Decupagem', 'Montagem', 'Partes', 'Cor', 'Reels', 'Revisão — Vídeo']
+
+// DATA OFICIAL DE INÍCIO DO SISTEMA LIMPO
+const DATA_CORTE_OFICIAL = '2026-05-27'
 
 function minutosDoEvento(ev) {
-  if (Number(ev.tempo_manual_minutos) > 0) return Number(ev.tempo_manual_minutos)
-  if (Number(ev.horas_calculadas) > 0) return Number(ev.horas_calculadas) * 60
-  if (TEMPO_EM_MIN[ev.tempo]) return TEMPO_EM_MIN[ev.tempo]
-  if (TEMPO_EM_MIN[ev.tm]) return TEMPO_EM_MIN[ev.tm]
+  if (Number(ev.tempo_manual_minutos) > 0)
+    return Number(ev.tempo_manual_minutos)
+
+  if (Number(ev.horas_calculadas) > 0)
+    return Number(ev.horas_calculadas) * 60
+
+  if (TEMPO_EM_MIN[ev.tempo])
+    return TEMPO_EM_MIN[ev.tempo]
+
+  if (TEMPO_EM_MIN[ev.tm])
+    return TEMPO_EM_MIN[ev.tm]
+
   return 0
 }
 
@@ -20,343 +36,670 @@ function horas(mins) {
 function formatHoras(mins) {
   const h = Math.floor(mins / 60)
   const m = Math.round(mins % 60)
+
   if (h && m) return `${h}h ${m}min`
   if (h) return `${h}h`
+
   return `${m}min`
 }
 
 function pessoaInfo(nome) {
-  return EQUIPE.find(p => p.nome === nome) || { nome, cor: '#1C1B18', tipo: 'geral' }
-}
-
-function Barra({ label, valor, max, cor = '#1C1B18', sufixo = 'h' }) {
-  const pct = max > 0 ? Math.round((valor / max) * 100) : 0
-
   return (
-    <div className="barra-wrap">
-      <span className="barra-label" style={{ minWidth: 180 }}>{label}</span>
-      <div className="barra-track">
-        <div className="barra-fill" style={{ width: `${pct}%`, background: cor }} />
-      </div>
-      <span className="barra-valor">{valor}{sufixo}</span>
-    </div>
+    EQUIPE.find(
+      p => p.nome === nome
+    ) || {
+      nome,
+      cor:'#1C1B18',
+      tipo:'geral'
+    }
   )
 }
 
-function Card({ titulo, valor, detalhe, cor = '#1C1B18' }) {
-  return (
-    <div className="metric-card" style={{ borderTop: `3px solid ${cor}` }}>
-      <div className="metric-value" style={{ color: cor }}>{valor}</div>
-      <div className="metric-label">{titulo}</div>
-      {detalhe && <div className="text-muted" style={{ fontSize: 11, marginTop: 6 }}>{detalhe}</div>}
-    </div>
-  )
+function BotaoAba({
+ativo,
+children,
+onClick
+}) {
+return (
+
+<button
+className={
+ativo
+? 'btn'
+: 'btn btn-ghost'
+}
+onClick={onClick}
+type="button"
+>
+{children}
+</button>
+
+)
 }
 
-function TabelaEquipe({ titulo, pessoas, dados, tipo }) {
-  return (
-    <div className="card mb-6">
-      <div className="card-header">
-        <strong>{titulo}</strong>
-      </div>
-
-      <div className="card-body">
-        {pessoas.map(p => {
-          const d = dados[p.nome] || { minutos: 0, edicoes: 0, selecoes: 0, tarefas: 0, etapas: {} }
-          const fotos = d.edicoes + d.selecoes
-          const fotosHora = d.minutos > 0 ? Math.round((fotos / (d.minutos / 60)) * 10) / 10 : 0
-
-          return (
-            <div
-              key={p.nome}
-              style={{
-                background: corLeve(p.cor),
-                borderLeft: `4px solid ${p.cor}`,
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 10,
-              }}
-            >
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr .7fr .7fr .7fr .7fr', gap: 12, fontSize: 13 }}>
-                <strong style={{ color: p.cor }}>{p.nome}</strong>
-                <span>{formatHoras(d.minutos)}</span>
-                <span>{d.edicoes.toLocaleString('pt-BR')} E</span>
-                <span>{d.selecoes.toLocaleString('pt-BR')} S</span>
-                <span>{tipo === 'foto' ? `${fotosHora}/h` : `${d.tarefas} tarefas`}</span>
-              </div>
-
-              <div style={{ marginTop: 10 }}>
-                {(tipo === 'foto' ? FOTO_ETAPAS : VIDEO_ETAPAS).map(etapa => (
-                  <div key={etapa} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 3 }}>
-                    {etapa}: <strong>{formatHoras(d.etapas[etapa] || 0)}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
+function dataHojeISO() {
+return new Date()
+.toISOString()
+.slice(0,10)
 }
 
-export function Analise({ registros }) {
-  const [filtroPessoa, setFiltroPessoa] = useState('')
-  const [filtroServico, setFiltroServico] = useState('')
-  const [filtroCategoria, setFiltroCategoria] = useState('')
-  const [buscaCliente, setBuscaCliente] = useState('')
+function inicioMesISO() {
+const hoje = new Date()
 
-  const eventos = useMemo(() => {
-    const lista = []
+return new Date(
+hoje.getFullYear(),
+hoje.getMonth(),
+1
+)
+.toISOString()
+.slice(0,10)
+}
 
-    registros.forEach(r => {
-      r.blocos.forEach((bloco, blocoIndex) => {
-        bloco.forEach(ev => {
-          const categoria = ev.categoria || ev.cat || ''
-          const servico = ev.servico || ''
-          const cliente = ev.projeto || ev.ev || ''
+export function Analise({
+registros
+}) {
 
-          if (categoria && !CATEGORIAS_OFICIAIS.includes(categoria)) return
-          if (servico && !TIPOS_SERVICO.includes(servico)) return
+const [
+filtroPessoa,
+setFiltroPessoa
+] = useState('')
 
-          lista.push({
-            pessoa: r.pessoa,
-            tipo: r.tipo,
-            data: r.data,
-            bloco: blocoIndex + 1,
-            servico,
-            categoria,
-            cliente,
-            tempo: ev.tempo || ev.tm || '',
-            edicoes: Number(ev.edicoes ?? ev.ed) || 0,
-            selecoes: Number(ev.selecoes ?? ev.se) || 0,
-            minutos: minutosDoEvento(ev),
-          })
-        })
-      })
-    })
+const [
+filtroServico,
+setFiltroServico
+] = useState('')
 
-    return lista.filter(ev =>
-      ev.servico || ev.categoria || ev.cliente || ev.tempo || ev.edicoes || ev.selecoes
-    )
-  }, [registros])
+const [
+filtroCategoria,
+setFiltroCategoria
+] = useState('')
 
-  const filtrados = useMemo(() => {
-    return eventos.filter(ev => {
-      if (filtroPessoa && ev.pessoa !== filtroPessoa) return false
-      if (filtroServico && ev.servico !== filtroServico) return false
-      if (filtroCategoria && ev.categoria !== filtroCategoria) return false
-      if (buscaCliente && !String(ev.cliente).toLowerCase().includes(buscaCliente.toLowerCase())) return false
-      return true
-    })
-  }, [eventos, filtroPessoa, filtroServico, filtroCategoria, buscaCliente])
+const [
+buscaCliente,
+setBuscaCliente
+] = useState('')
 
-  const metricas = useMemo(() => {
-    const porPessoa = {}
-    const porCategoria = {}
-    const porCliente = {}
-    const porServico = {}
-    const ausencias = {}
+const [
+filtroOrigem,
+setFiltroOrigem
+] = useState(
+'oficial'
+)
 
-    EQUIPE.forEach(p => {
-      porPessoa[p.nome] = { minutos: 0, edicoes: 0, selecoes: 0, tarefas: 0, etapas: {} }
-    })
+const [
+abaAtual,
+setAbaAtual
+] = useState(
+'geral'
+)
 
-    let minutos = 0
-    let edicoes = 0
-    let selecoes = 0
+const [
+periodo,
+setPeriodo
+] = useState(
+'mes'
+)
 
-    filtrados.forEach(ev => {
-      minutos += ev.minutos
-      edicoes += ev.edicoes
-      selecoes += ev.selecoes
+const [
+dataInicio,
+setDataInicio
+] = useState(
+inicioMesISO()
+)
 
-      if (!porPessoa[ev.pessoa]) {
-        porPessoa[ev.pessoa] = { minutos: 0, edicoes: 0, selecoes: 0, tarefas: 0, etapas: {} }
-      }
+const [
+dataFim,
+setDataFim
+] = useState(
+dataHojeISO()
+)
 
-      porPessoa[ev.pessoa].minutos += ev.minutos
-      porPessoa[ev.pessoa].edicoes += ev.edicoes
-      porPessoa[ev.pessoa].selecoes += ev.selecoes
-      porPessoa[ev.pessoa].tarefas += 1
-      porPessoa[ev.pessoa].etapas[ev.categoria] = (porPessoa[ev.pessoa].etapas[ev.categoria] || 0) + ev.minutos
+const gerarPDF = () => {
+window.print()
+}
 
-      if (ev.categoria) porCategoria[ev.categoria] = (porCategoria[ev.categoria] || 0) + ev.minutos
-      if (ev.cliente) porCliente[ev.cliente] = (porCliente[ev.cliente] || 0) + ev.minutos
-      if (ev.servico) porServico[ev.servico] = (porServico[ev.servico] || 0) + ev.minutos
+const eventos = useMemo(() => {
 
-      if (ev.categoria === 'Ausência' || ev.categoria === 'Compromisso externo') {
-        ausencias[ev.pessoa] = (ausencias[ev.pessoa] || 0) + ev.minutos
-      }
-    })
+const lista=[]
 
-    return { minutos, edicoes, selecoes, porPessoa, porCategoria, porCliente, porServico, ausencias }
-  }, [filtrados])
+registros.forEach(r=>{
 
-  const fotoPessoas = EQUIPE.filter(p => p.tipo === 'foto')
-  const videoPessoas = EQUIPE.filter(p => p.tipo === 'video')
-  const admPessoas = EQUIPE.filter(p => p.tipo === 'adm')
+(r.blocos||[])
+.forEach(
+(bloco,
+blocoIndex)=>{
 
-  const topCategorias = Object.entries(metricas.porCategoria).sort((a, b) => b[1] - a[1]).slice(0, 12)
-  const topClientes = Object.entries(metricas.porCliente).sort((a, b) => b[1] - a[1]).slice(0, 12)
-  const topServicos = Object.entries(metricas.porServico).sort((a, b) => b[1] - a[1]).slice(0, 8)
-  const topAusencias = Object.entries(metricas.ausencias).sort((a, b) => b[1] - a[1])
+(bloco||[])
+.forEach(ev=>{
 
-  const maxCat = Math.max(...topCategorias.map(([, v]) => horas(v)), 1)
-  const maxCli = Math.max(...topClientes.map(([, v]) => horas(v)), 1)
-  const maxServ = Math.max(...topServicos.map(([, v]) => horas(v)), 1)
-  const maxAus = Math.max(...topAusencias.map(([, v]) => horas(v)), 1)
+const categoria=
+ev.categoria||
+ev.cat||
+''
 
-  const pessoaMaisCarregada = Object.entries(metricas.porPessoa).sort((a, b) => b[1].minutos - a[1].minutos)[0]
-  const clienteMaisPesado = topClientes[0]
-  const gargaloPrincipal = topCategorias[0]
+const servico=
+ev.servico||
+''
 
-  const fotosHoraGeral =
-    metricas.minutos > 0
-      ? Math.round(((metricas.edicoes + metricas.selecoes) / (metricas.minutos / 60)) * 10) / 10
-      : 0
+const cliente=
+ev.projeto||
+ev.ev||
+''
 
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="section-title" style={{ marginBottom: 4 }}>Análise Avançada</h2>
-          <p className="text-muted" style={{ fontSize: 13 }}>
-            Comparativos separados por função, cliente, serviço e etapa.
-          </p>
-        </div>
+if(
+categoria &&
+!CATEGORIAS_OFICIAIS
+.includes(
+categoria
+)
+)
+return
 
-        <button className="btn btn-ghost btn-sm" disabled title="Em breve">
-          Gerar PDF
-        </button>
-      </div>
+if(
+servico &&
+!TIPOS_SERVICO
+.includes(
+servico
+)
+)
+return
 
-      <div className="card card-body mb-6">
-        <div className="grid grid-4">
-          <select className="form-select" value={filtroPessoa} onChange={e => setFiltroPessoa(e.target.value)}>
-            <option value="">Todas as pessoas</option>
-            {EQUIPE.map(p => <option key={p.nome} value={p.nome}>{p.nome}</option>)}
-          </select>
+lista.push({
 
-          <select className="form-select" value={filtroServico} onChange={e => setFiltroServico(e.target.value)}>
-            <option value="">Todos os serviços</option>
-            {TIPOS_SERVICO.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+pessoa:r.pessoa,
 
-          <select className="form-select" value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)}>
-            <option value="">Todas as etapas</option>
-            {Object.entries(CATEGORIAS).map(([grupo, cats]) => (
-              <optgroup key={grupo} label={grupo}>
-                {cats.map(c => <option key={c} value={c}>{c}</option>)}
-              </optgroup>
-            ))}
-          </select>
+tipo:r.tipo,
 
-          <input
-            className="form-input"
-            placeholder="Buscar cliente..."
-            value={buscaCliente}
-            onChange={e => setBuscaCliente(e.target.value)}
-          />
-        </div>
-      </div>
+data:r.data,
 
-      <div className="metric-grid mb-6">
-        <Card titulo="Horas totais" valor={horas(metricas.minutos)} detalhe={formatHoras(metricas.minutos)} />
-        <Card titulo="Tarefas" valor={filtrados.length} />
-        <Card titulo="Edições" valor={metricas.edicoes.toLocaleString('pt-BR')} cor="#185FA5" />
-        <Card titulo="Seleções" valor={metricas.selecoes.toLocaleString('pt-BR')} cor="#D4537E" />
-        <Card titulo="Fotos/hora" valor={fotosHoraGeral} cor="#0F6E56" />
-      </div>
+// REGRA NOVA
 
-      <div className="metric-grid mb-6">
-        <Card
-          titulo="Pessoa mais carregada"
-          valor={pessoaMaisCarregada?.[0] || '—'}
-          detalhe={pessoaMaisCarregada ? formatHoras(pessoaMaisCarregada[1].minutos) : ''}
-          cor={pessoaInfo(pessoaMaisCarregada?.[0]).cor}
-        />
+origem:
 
-        <Card
-          titulo="Cliente com mais tempo"
-          valor={clienteMaisPesado?.[0] || '—'}
-          detalhe={clienteMaisPesado ? formatHoras(clienteMaisPesado[1]) : ''}
-          cor="#534AB7"
-        />
+String(
+r.data
+) >=
+DATA_CORTE_OFICIAL
 
-        <Card
-          titulo="Maior gargalo"
-          valor={gargaloPrincipal?.[0] || '—'}
-          detalhe={gargaloPrincipal ? formatHoras(gargaloPrincipal[1]) : ''}
-          cor="#BA7517"
-        />
-      </div>
+? 'oficial'
 
-      <TabelaEquipe
-        titulo="📷 Comparativo — Foto"
-        pessoas={fotoPessoas}
-        dados={metricas.porPessoa}
-        tipo="foto"
-      />
+: 'legado',
 
-      <TabelaEquipe
-        titulo="🎬 Comparativo — Vídeo"
-        pessoas={videoPessoas}
-        dados={metricas.porPessoa}
-        tipo="video"
-      />
+bloco:
+blocoIndex+1,
 
-      <TabelaEquipe
-        titulo="🤝 Comparativo — ADM / Gestão"
-        pessoas={admPessoas}
-        dados={metricas.porPessoa}
-        tipo="adm"
-      />
+servico,
 
-      <div className="grid grid-2">
-        <div className="card">
-          <div className="card-header"><strong>🔥 Gargalos por etapa</strong></div>
-          <div className="card-body">
-            {topCategorias.map(([cat, mins]) => (
-              <Barra key={cat} label={cat} valor={horas(mins)} max={maxCat} cor="#BA7517" />
-            ))}
-          </div>
-        </div>
+categoria,
 
-        <div className="card">
-          <div className="card-header"><strong>👥 Tempo por cliente</strong></div>
-          <div className="card-body">
-            {topClientes.map(([cli, mins]) => (
-              <Barra key={cli} label={cli} valor={horas(mins)} max={maxCli} cor="#534AB7" />
-            ))}
-          </div>
-        </div>
+cliente,
 
-        <div className="card">
-          <div className="card-header"><strong>💼 Tempo por serviço</strong></div>
-          <div className="card-body">
-            {topServicos.map(([serv, mins]) => (
-              <Barra key={serv} label={serv} valor={horas(mins)} max={maxServ} cor="#0F6E56" />
-            ))}
-          </div>
-        </div>
+tempo:
+ev.tempo||
+ev.tm||
+'',
 
-        <div className="card">
-          <div className="card-header"><strong>🚫 Ausências / externos</strong></div>
-          <div className="card-body">
-            {topAusencias.length === 0 && (
-              <p className="text-muted text-sm">Sem ausências no período.</p>
-            )}
+edicoes:
+Number(
+ev.edicoes
+?? ev.ed
+)||0,
 
-            {topAusencias.map(([pessoa, mins]) => {
-              const info = pessoaInfo(pessoa)
-              return (
-                <Barra key={pessoa} label={pessoa} valor={horas(mins)} max={maxAus} cor={info.cor} />
-              )
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+selecoes:
+Number(
+ev.selecoes
+?? ev.se
+)||0,
+
+minutos:
+minutosDoEvento(
+ev
+)
+
+})
+
+})
+
+})
+
+})
+
+return lista
+
+},[
+registros
+])
+
+const filtrados=
+useMemo(()=>{
+
+return eventos
+.filter(ev=>{
+
+if(
+filtroOrigem==='oficial' &&
+ev.origem!=='oficial'
+)
+return false
+
+if(
+filtroOrigem==='legado' &&
+ev.origem!=='legado'
+)
+return false
+
+if(
+filtroPessoa &&
+ev.pessoa
+!== filtroPessoa
+)
+return false
+
+if(
+filtroServico &&
+ev.servico
+!== filtroServico
+)
+return false
+
+if(
+filtroCategoria &&
+ev.categoria
+!== filtroCategoria
+)
+return false
+
+if(
+buscaCliente &&
+!String(
+ev.cliente
+)
+.toLowerCase()
+.includes(
+buscaCliente
+.toLowerCase()
+)
+)
+return false
+
+if(
+dataInicio &&
+String(ev.data)
+< dataInicio
+)
+return false
+
+if(
+dataFim &&
+String(ev.data)
+> dataFim
+)
+return false
+
+return true
+
+})
+
+},[
+eventos,
+filtroPessoa,
+filtroServico,
+filtroCategoria,
+buscaCliente,
+filtroOrigem,
+dataInicio,
+dataFim
+])
+
+const metricas=
+useMemo(()=>{
+
+const porPessoa={}
+const porCliente={}
+const porCategoria={}
+const porServico={}
+const ausencias={}
+
+const porArea={
+foto:0,
+video:0,
+adm:0
+}
+
+let minutos=0
+let edicoes=0
+let selecoes=0
+let minutosAusencia=0
+
+filtrados.forEach(
+ev=>{
+
+const info=
+pessoaInfo(
+ev.pessoa
+)
+
+const ehAusencia=
+
+ev.categoria===
+'Ausência'
+
+||
+
+ev.categoria===
+'Compromisso externo'
+
+minutos+=
+ev.minutos
+
+edicoes+=
+ev.edicoes
+
+selecoes+=
+ev.selecoes
+
+if(
+ehAusencia
+)
+minutosAusencia+=
+ev.minutos
+
+porArea[
+info.tipo
+]=
+(
+porArea[
+info.tipo
+]||0
+)+
+ev.minutos
+
+})
+
+return {
+
+minutos,
+
+edicoes,
+
+selecoes,
+
+minutosAusencia,
+
+minutosProdutivos:
+Math.max(
+minutos-
+minutosAusencia,
+0
+),
+
+eficiencia:
+
+minutos>0
+
+?
+
+Math.round(
+
+(
+(
+minutos-
+minutosAusencia
+)
+
+/
+
+minutos
+
+)
+
+*100
+
+)
+
+:0,
+
+porPessoa,
+
+porCliente,
+
+porCategoria,
+
+porServico,
+
+ausencias,
+
+porArea
+
+}
+
+},[
+filtrados
+])
+
+return (
+
+<div
+className="
+dashboard-print-area
+"
+>
+
+<div
+className="
+flex
+justify-between
+items-center
+mb-4
+"
+>
+
+<div>
+
+<h2
+className="
+section-title
+"
+>
+
+Análise
+Avançada
+v4.3
+
+</h2>
+
+<p
+className="
+text-muted
+"
+>
+
+Dados
+oficiais:
+
+27/05/2026+
+
+</p>
+
+</div>
+
+<button
+className="
+btn
+btn-ghost
+btn-sm
+"
+onClick={
+gerarPDF
+}
+>
+
+Gerar PDF
+
+</button>
+
+</div>
+
+<div
+style={{
+display:'flex',
+gap:10,
+flexWrap:'wrap',
+marginBottom:20
+}}
+>
+
+<BotaoAba
+ativo={
+abaAtual===
+'geral'
+}
+onClick={()=>
+setAbaAtual(
+'geral'
+)
+}
+>
+Geral
+</BotaoAba>
+
+<BotaoAba
+ativo={
+abaAtual===
+'foto'
+}
+onClick={()=>
+setAbaAtual(
+'foto'
+)
+}
+>
+Foto
+</BotaoAba>
+
+<BotaoAba
+ativo={
+abaAtual===
+'video'
+}
+onClick={()=>
+setAbaAtual(
+'video'
+)
+}
+>
+Vídeo
+</BotaoAba>
+
+<BotaoAba
+ativo={
+abaAtual===
+'adm'
+}
+onClick={()=>
+setAbaAtual(
+'adm'
+)
+}
+>
+ADM
+</BotaoAba>
+
+<BotaoAba
+ativo={
+abaAtual===
+'cliente'
+}
+onClick={()=>
+setAbaAtual(
+'cliente'
+)
+}
+>
+Cliente 360
+</BotaoAba>
+
+<BotaoAba
+ativo={
+abaAtual===
+'ausencias'
+}
+onClick={()=>
+setAbaAtual(
+'ausencias'
+)
+}
+>
+Ausências
+</BotaoAba>
+
+<BotaoAba
+ativo={
+abaAtual===
+'rankings'
+}
+onClick={()=>
+setAbaAtual(
+'rankings'
+)
+}
+>
+Rankings
+</BotaoAba>
+
+</div>
+
+<DashboardFiltros
+filtroPessoa={filtroPessoa}
+setFiltroPessoa={setFiltroPessoa}
+filtroServico={filtroServico}
+setFiltroServico={setFiltroServico}
+filtroCategoria={filtroCategoria}
+setFiltroCategoria={setFiltroCategoria}
+buscaCliente={buscaCliente}
+setBuscaCliente={setBuscaCliente}
+filtroOrigem={filtroOrigem}
+setFiltroOrigem={setFiltroOrigem}
+periodo={periodo}
+setPeriodo={setPeriodo}
+dataInicio={dataInicio}
+setDataInicio={setDataInicio}
+dataFim={dataFim}
+setDataFim={setDataFim}
+/>
+
+<DashboardKPIs
+metricas={metricas}
+filtrados={filtrados}
+clientesAtivos={
+0
+}
+tempoMedioTarefa={
+0
+}
+tempoMedioCliente={
+0
+}
+fotosHoraGeral={
+0
+}
+pessoaMaisCarregada={
+null
+}
+clienteMaisPesado={
+null
+}
+gargaloPrincipal={
+null
+}
+horas={horas}
+formatHoras={
+formatHoras
+}
+/>
+
+</div>
+
+)
+
 }

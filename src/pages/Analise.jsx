@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { EQUIPE, CATEGORIAS, TIPOS_SERVICO, TEMPO_EM_MIN } from '../lib/constants'
 
-import { DashboardFiltros } from '../components/dashboard/DashboardFiltros'
-import { DashboardKPIs } from '../components/dashboard/DashboardKPIs'
-import { DashboardComparativo } from '../components/dashboard/DashboardComparativo'
-import { DashboardCliente360 } from '../components/dashboard/DashboardCliente360'
-import { DashboardAusencias } from '../components/dashboard/DashboardAusencias'
-import { DashboardRankings } from '../components/dashboard/DashboardRankings'
+import { DashboardFiltros } from '../components/Dashboard/DashboardFiltros'
+import { DashboardKPIs } from '../components/Dashboard/DashboardKPIs'
+import { DashboardComparativo } from '../components/Dashboard/DashboardComparativo'
+import { DashboardCliente360 } from '../components/Dashboard/DashboardCliente360'
+import { DashboardAusencias } from '../components/Dashboard/DashboardAusencias'
+import { DashboardRankings } from '../components/Dashboard/DashboardRankings'
 
 const CATEGORIAS_OFICIAIS = Object.values(CATEGORIAS).flat()
 
